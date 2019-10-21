@@ -48,6 +48,7 @@ struct MapgenFlatParams : public MapgenParams
 	NoiseParams np_filler_depth;
 	NoiseParams np_cave1;
 	NoiseParams np_cave2;
+	NoiseParams np_dungeons;
 
 	MapgenFlatParams();
 	~MapgenFlatParams() = default;
@@ -59,7 +60,7 @@ struct MapgenFlatParams : public MapgenParams
 class MapgenFlat : public MapgenBasic
 {
 public:
-	MapgenFlat(int mapgenid, MapgenFlatParams *params, EmergeManager *emerge);
+	MapgenFlat(MapgenFlatParams *params, EmergeManager *emerge);
 	~MapgenFlat();
 
 	virtual MapgenType getType() const { return MAPGEN_FLAT; }

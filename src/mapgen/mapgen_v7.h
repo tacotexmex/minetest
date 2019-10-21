@@ -66,6 +66,7 @@ struct MapgenV7Params : public MapgenParams {
 	NoiseParams np_cavern;
 	NoiseParams np_cave1;
 	NoiseParams np_cave2;
+	NoiseParams np_dungeons;
 
 	MapgenV7Params();
 	~MapgenV7Params() = default;
@@ -77,7 +78,7 @@ struct MapgenV7Params : public MapgenParams {
 
 class MapgenV7 : public MapgenBasic {
 public:
-	MapgenV7(int mapgenid, MapgenV7Params *params, EmergeManager *emerge);
+	MapgenV7(MapgenV7Params *params, EmergeManager *emerge);
 	~MapgenV7();
 
 	virtual MapgenType getType() const { return MAPGEN_V7; }

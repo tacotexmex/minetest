@@ -365,7 +365,9 @@ if map format version <= 22:
     u16 content_size
     u8[content_size] content of metadata. Format depends on type_id, see below.
 if map format version >= 23:
-  u8 version (=1) -- Note the type is u8, while for map format version <= 22 it's u16
+  u8 version -- Note: type was u16 for map format version <= 22
+    -- = 1 for map format version < 28
+    -- = 2 since map format version 28
   u16 count of metadata
   foreach count:
     u16 position (p.Z*MAP_BLOCKSIZE*MAP_BLOCKSIZE + p.Y*MAP_BLOCKSIZE + p.X)
@@ -375,6 +377,7 @@ if map format version >= 23:
       u8[key_len] key
       u32 val_len
       u8[val_len] value
+      u8 is_private -- only for version >= 2. 0 = not private, 1 = private
     serialized inventory
 
 - Node timers
@@ -510,17 +513,20 @@ Object types:
     u8[len] itemstring
 
 7: LuaEntity:
-  u8 version
-  version 1:
-    u16 len
-    u8[len] entity name
-    u32 len
-    u8[len] static data
-    s16 hp
-    s32 velocity.x * 10000
-    s32 velocity.y * 10000
-    s32 velocity.z * 10000
-    s32 yaw * 1000
+  u8 compatibility_byte (always 1)
+  u16 len
+  u8[len] entity name
+  u32 len
+  u8[len] static data
+  s16 hp
+  s32 velocity.x * 10000
+  s32 velocity.y * 10000
+  s32 velocity.z * 10000
+  s32 yaw * 1000
+  if PROTOCOL_VERSION >= 37:
+    u8 version2 (=1)
+    s32 pitch * 1000
+    s32 roll * 1000
 
 Itemstring format
 ------------------

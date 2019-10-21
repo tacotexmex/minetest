@@ -21,6 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <utility>
 #include <stack>
+#include <unordered_set>
 
 #include "irrlichttypes_extrabloated.h"
 #include "inventorymanager.h"
@@ -30,6 +31,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "client/joystick_controller.h"
 #include "util/string.h"
 #include "util/enriched_string.h"
+#include "StyleSpec.h"
 
 class InventoryManager;
 class ISimpleTextureSource;
@@ -99,12 +101,14 @@ class GUIFormSpecMenu : public GUIModalMenu
 
 		ListDrawSpec(const InventoryLocation &a_inventoryloc,
 				const std::string &a_listname,
-				v2s32 a_pos, v2s32 a_geom, s32 a_start_item_i):
+				v2s32 a_pos, v2s32 a_geom, s32 a_start_item_i,
+				bool a_real_coordinates):
 			inventoryloc(a_inventoryloc),
 			listname(a_listname),
 			pos(a_pos),
 			geom(a_geom),
-			start_item_i(a_start_item_i)
+			start_item_i(a_start_item_i),
+			real_coordinates(a_real_coordinates)
 		{
 		}
 
@@ -113,6 +117,7 @@ class GUIFormSpecMenu : public GUIModalMenu
 		v2s32 pos;
 		v2s32 geom;
 		s32 start_item_i;
+		bool real_coordinates;
 	};
 
 	struct ListRingSpec
@@ -177,6 +182,18 @@ class GUIFormSpecMenu : public GUIModalMenu
 		}
 
 		ImageDrawSpec(const std::string &a_name,
+				const v2s32 &a_pos, const v2s32 &a_geom, const core::rect<s32> &middle, bool clip=false):
+				name(a_name),
+				parent_button(NULL),
+				pos(a_pos),
+				geom(a_geom),
+				middle(middle),
+				scale(true),
+				clip(clip)
+		{
+		}
+
+		ImageDrawSpec(const std::string &a_name,
 				const v2s32 &a_pos):
 			name(a_name),
 			parent_button(NULL),
@@ -191,6 +208,7 @@ class GUIFormSpecMenu : public GUIModalMenu
 		gui::IGUIButton *parent_button;
 		v2s32 pos;
 		v2s32 geom;
+		core::rect<s32> middle;
 		bool scale;
 		bool clip;
 	};
@@ -287,7 +305,7 @@ public:
 			ISimpleTextureSource *tsrc,
 			IFormSource* fs_src,
 			TextDest* txt_dst,
-			std::string formspecPrepend,
+			const std::string &formspecPrepend,
 			bool remap_dbl_click = true);
 
 	~GUIFormSpecMenu();
@@ -302,6 +320,11 @@ public:
 		m_formspec_string = formspec_string;
 		m_current_inventory_location = current_inventory_location;
 		regenerateGui(m_screensize_old);
+	}
+
+	const InventoryLocation &getFormspecLocation()
+	{
+		return m_current_inventory_location;
 	}
 
 	void setFormspecPrepend(const std::string &formspecPrepend)
@@ -376,6 +399,16 @@ protected:
 	std::string getNameByID(s32 id);
 	v2s32 getElementBasePos(bool absolute,
 			const std::vector<std::string> *v_pos);
+	v2s32 getRealCoordinateBasePos(bool absolute,
+			const std::vector<std::string> &v_pos);
+	v2s32 getRealCoordinateGeometry(const std::vector<std::string> &v_geom);
+
+	std::unordered_map<std::string, StyleSpec> theme_by_type;
+	std::unordered_map<std::string, StyleSpec> theme_by_name;
+	std::unordered_set<std::string> property_warned;
+
+	StyleSpec getStyleForElement(const std::string &type,
+			const std::string &name="", const std::string &parent_type="");
 
 	v2s32 padding;
 	v2f32 spacing;
@@ -439,12 +472,13 @@ protected:
 private:
 	IFormSource        *m_form_src;
 	TextDest           *m_text_dst;
-	u32                 m_formspec_version = 0;
+	u16                 m_formspec_version = 1;
 	std::string         m_focused_element = "";
 	JoystickController *m_joystick;
 
 	typedef struct {
 		bool explicit_size;
+		bool real_coordinates;
 		v2f invsize;
 		v2s32 size;
 		v2f32 offset;
@@ -512,6 +546,7 @@ private:
 	void parsePosition(parserData *data, const std::string &element);
 	bool parseAnchorDirect(parserData *data, const std::string &element);
 	void parseAnchor(parserData *data, const std::string &element);
+	bool parseStyle(parserData *data, const std::string &element, bool style_type);
 
 	void tryClose();
 
@@ -542,7 +577,6 @@ private:
 	 * and the default value for the setting is true.
 	 */
 	bool m_remap_dbl_click;
-
 };
 
 class FormspecFormSource: public IFormSource
@@ -557,7 +591,7 @@ public:
 
 	void setForm(const std::string &formspec)
 	{
-		m_formspec = FORMSPEC_VERSION_STRING + formspec;
+		m_formspec = formspec;
 	}
 
 	const std::string &getForm() const

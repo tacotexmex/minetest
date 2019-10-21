@@ -38,10 +38,10 @@ const int ID_cancel = 265;
 GUIConfirmRegistration::GUIConfirmRegistration(gui::IGUIEnvironment *env,
 		gui::IGUIElement *parent, s32 id, IMenuManager *menumgr, Client *client,
 		const std::string &playername, const std::string &password,
-		const std::string &address, bool *aborted) :
+		bool *aborted) :
 		GUIModalMenu(env, parent, id, menumgr),
 		m_client(client), m_playername(playername), m_password(password),
-		m_address(address), m_aborted(aborted)
+		m_aborted(aborted)
 {
 #ifdef __ANDROID__
 	m_touchscreen_visible = false;
@@ -62,6 +62,7 @@ void GUIConfirmRegistration::removeChildren()
 	for (gui::IGUIElement *i : children_copy)
 		i->remove();
 }
+
 void GUIConfirmRegistration::regenerateGui(v2u32 screensize)
 {
 	acceptInput();
@@ -119,6 +120,7 @@ void GUIConfirmRegistration::regenerateGui(v2u32 screensize)
 		gui::IGUIEditBox *e = Environment->addEditBox(m_pass_confirm.c_str(),
 				rect2, true, this, ID_confirmPassword);
 		e->setPasswordBox(true);
+		Environment->setFocus(e);
 	}
 
 	ypos += 60 * s;
@@ -218,8 +220,7 @@ bool GUIConfirmRegistration::OnEvent(const SEvent &event)
 
 	if (event.GUIEvent.EventType == gui::EGET_ELEMENT_FOCUS_LOST && isVisible()) {
 		if (!canTakeFocus(event.GUIEvent.Element)) {
-			dstream << "GUIConfirmRegistration: Not allowing focus "
-				   "change."
+			dstream << "GUIConfirmRegistration: Not allowing focus change."
 				<< std::endl;
 			// Returning true disables focus change
 			return true;

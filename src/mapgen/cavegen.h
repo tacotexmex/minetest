@@ -119,6 +119,8 @@ public:
 	// configurable parameters
 	s32 seed;
 	int water_level;
+	// TODO 'lava_depth' and 'np_caveliquids' are deprecated and should be removed.
+	// Cave liquids are now defined and located using biome definitions.
 	int lava_depth;
 	NoiseParams *np_caveliquids;
 
@@ -133,6 +135,7 @@ public:
 	bool large_cave;
 	bool large_cave_is_flat;
 	bool flooded;
+	bool use_biome_liquid;
 
 	v3s16 node_min;
 	v3s16 node_max;
@@ -150,6 +153,7 @@ public:
 
 	content_t c_water_source;
 	content_t c_lava_source;
+	content_t c_biome_liquid;
 
 	// ndef is a mandatory parameter.
 	// If gennotify is NULL, generation events are not logged.

@@ -107,6 +107,21 @@ int ModApiMainMenu::l_update_formspec(lua_State *L)
 }
 
 /******************************************************************************/
+int ModApiMainMenu::l_set_formspec_prepend(lua_State *L)
+{
+	GUIEngine *engine = getGuiEngine(L);
+	sanity_check(engine != NULL);
+
+	if (engine->m_startgame)
+		return 0;
+
+	std::string formspec(luaL_checkstring(L, 1));
+	engine->setFormspecPrepend(formspec);
+
+	return 0;
+}
+
+/******************************************************************************/
 int ModApiMainMenu::l_start(lua_State *L)
 {
 	GUIEngine* engine = getGuiEngine(L);
@@ -867,6 +882,16 @@ bool ModApiMainMenu::mayModifyPath(const std::string &path)
 	return false;
 }
 
+
+/******************************************************************************/
+int ModApiMainMenu::l_may_modify_path(lua_State *L)
+{
+	const char *target = luaL_checkstring(L, 1);
+	std::string absolute_destination = fs::RemoveRelativePathComponents(target);
+	lua_pushboolean(L, ModApiMainMenu::mayModifyPath(absolute_destination));
+	return 1;
+}
+
 /******************************************************************************/
 int ModApiMainMenu::l_show_path_select_dialog(lua_State *L)
 {
@@ -1031,6 +1056,7 @@ int ModApiMainMenu::l_do_async_callback(lua_State *L)
 void ModApiMainMenu::Initialize(lua_State *L, int top)
 {
 	API_FCT(update_formspec);
+	API_FCT(set_formspec_prepend);
 	API_FCT(set_clouds);
 	API_FCT(get_textlist_index);
 	API_FCT(get_table_index);
@@ -1057,6 +1083,7 @@ void ModApiMainMenu::Initialize(lua_State *L, int top)
 	API_FCT(delete_dir);
 	API_FCT(copy_dir);
 	API_FCT(extract_zip);
+	API_FCT(may_modify_path);
 	API_FCT(get_mainmenu_path);
 	API_FCT(show_path_select_dialog);
 	API_FCT(download_file);
@@ -1086,6 +1113,7 @@ void ModApiMainMenu::InitializeAsync(lua_State *L, int top)
 	API_FCT(delete_dir);
 	API_FCT(copy_dir);
 	//API_FCT(extract_zip); //TODO remove dependency to GuiEngine
+	API_FCT(may_modify_path);
 	API_FCT(download_file);
 	//API_FCT(gettext); (gettext lib isn't threadsafe)
 }

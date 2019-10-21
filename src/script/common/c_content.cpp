@@ -21,6 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/c_types.h"
 #include "nodedef.h"
 #include "object_properties.h"
+#include "content_sao.h"
 #include "cpp_api/s_node.h"
 #include "lua_api/l_object.h"
 #include "lua_api/l_item.h"
@@ -163,11 +164,7 @@ void push_item_definition_full(lua_State *L, const ItemDefinition &i)
 	lua_pushboolean(L, i.liquids_pointable);
 	lua_setfield(L, -2, "liquids_pointable");
 	if (i.type == ITEM_TOOL) {
-		push_tool_capabilities(L, ToolCapabilities(
-			i.tool_capabilities->full_punch_interval,
-			i.tool_capabilities->max_drop_level,
-			i.tool_capabilities->groupcaps,
-			i.tool_capabilities->damageGroups));
+		push_tool_capabilities(L, *i.tool_capabilities);
 		lua_setfield(L, -2, "tool_capabilities");
 	}
 	push_groups(L, i.groups);
@@ -182,7 +179,7 @@ void push_item_definition_full(lua_State *L, const ItemDefinition &i)
 
 /******************************************************************************/
 void read_object_properties(lua_State *L, int index,
-		ObjectProperties *prop, IItemDefManager *idef)
+		ServerActiveObject *sao, ObjectProperties *prop, IItemDefManager *idef)
 {
 	if(index < 0)
 		index = lua_gettop(L) + 1 + index;
@@ -190,10 +187,24 @@ void read_object_properties(lua_State *L, int index,
 		return;
 
 	int hp_max = 0;
-	if (getintfield(L, -1, "hp_max", hp_max))
+	if (getintfield(L, -1, "hp_max", hp_max)) {
 		prop->hp_max = (u16)rangelim(hp_max, 0, U16_MAX);
 
-	getintfield(L, -1, "breath_max", prop->breath_max);
+		if (prop->hp_max < sao->getHP()) {
+			PlayerHPChangeReason reason(PlayerHPChangeReason::SET_HP);
+			sao->setHP(prop->hp_max, reason);
+			if (sao->getType() == ACTIVEOBJECT_TYPE_PLAYER)
+				sao->getEnv()->getGameDef()->SendPlayerHPOrDie((PlayerSAO *)sao, reason);
+		}
+	}
+
+	if (getintfield(L, -1, "breath_max", prop->breath_max)) {
+		if (sao->getType() == ACTIVEOBJECT_TYPE_PLAYER) {
+			PlayerSAO *player = (PlayerSAO *)sao;
+			if (prop->breath_max < player->getBreath())
+				player->setBreath(prop->breath_max);
+		}
+	}
 	getboolfield(L, -1, "physical", prop->physical);
 	getboolfield(L, -1, "collide_with_objects", prop->collideWithObjects);
 
@@ -1093,7 +1104,7 @@ MapNode readnode(lua_State *L, int index, const NodeDefManager *ndef)
 	lua_getfield(L, index, "name");
 	if (!lua_isstring(L, -1))
 		throw LuaError("Node name is not set or is not a string!");
-	const char *name = lua_tostring(L, -1);
+	std::string name = lua_tostring(L, -1);
 	lua_pop(L, 1);
 
 	u8 param1 = 0;
@@ -1108,7 +1119,11 @@ MapNode readnode(lua_State *L, int index, const NodeDefManager *ndef)
 		param2 = lua_tonumber(L, -1);
 	lua_pop(L, 1);
 
-	return {ndef, name, param1, param2};
+	content_t id = CONTENT_IGNORE;
+	if (!ndef->getId(name, id))
+		throw LuaError("\"" + name + "\" is not a registered node!");
+
+	return {id, param1, param2};
 }
 
 /******************************************************************************/
@@ -1234,7 +1249,8 @@ void push_tool_capabilities(lua_State *L,
 {
 	lua_newtable(L);
 	setfloatfield(L, -1, "full_punch_interval", toolcap.full_punch_interval);
-		setintfield(L, -1, "max_drop_level", toolcap.max_drop_level);
+	setintfield(L, -1, "max_drop_level", toolcap.max_drop_level);
+	setintfield(L, -1, "punch_attack_uses", toolcap.punch_attack_uses);
 		// Create groupcaps table
 		lua_newtable(L);
 		// For each groupcap
@@ -1356,6 +1372,7 @@ ToolCapabilities read_tool_capabilities(
 	ToolCapabilities toolcap;
 	getfloatfield(L, table, "full_punch_interval", toolcap.full_punch_interval);
 	getintfield(L, table, "max_drop_level", toolcap.max_drop_level);
+	getintfield(L, table, "punch_attack_uses", toolcap.punch_attack_uses);
 	lua_getfield(L, table, "groupcaps");
 	if(lua_istable(L, -1)){
 		int table_groupcaps = lua_gettop(L);
@@ -1510,13 +1527,15 @@ void read_groups(lua_State *L, int index, ItemGroupList &result)
 		return;
 	result.clear();
 	lua_pushnil(L);
-	if(index < 0)
+	if (index < 0)
 		index -= 1;
-	while(lua_next(L, index) != 0){
+	while (lua_next(L, index) != 0) {
 		// key at index -2 and value at index -1
 		std::string name = luaL_checkstring(L, -2);
 		int rating = luaL_checkinteger(L, -1);
-		result[name] = rating;
+		// zero rating indicates not in the group
+		if (rating != 0)
+			result[name] = rating;
 		// removes value, keeps key for next iteration
 		lua_pop(L, 1);
 	}

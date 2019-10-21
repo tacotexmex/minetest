@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 Minetest Lua Client Modding API Reference 5.0.1
 ===============================================
+=======
+Minetest Lua Client Modding API Reference 5.1.0
+================================================
+>>>>>>> 5.1.0
 * More information at <http://www.minetest.net/>
 * Developer Wiki: <http://dev.minetest.net/>
 
@@ -29,6 +34,16 @@ Startup
 -------
 Mods are loaded during client startup from the mod load paths by running
 the `init.lua` scripts in a shared environment.
+
+In order to load client-side mods in a world, the following conditions need to be satisfied:
+
+1) `$path_user/minetest.conf` contains the setting `enable_client_modding = true`
+
+2) The client-side mod located in `$path_user/clientmods/<modname>` is added to
+    `$path_user/clientmods/mods.conf` as `load_mod_<modname> = true`.
+
+Note: Depending on the remote server's settings, client-side mods might not
+be loaded or have limited functionality. See setting `csm_restriction_flags` for reference.
 
 Paths
 -----
@@ -100,9 +115,6 @@ is missing, that does not prevent this mod from being loaded.
 The main Lua script. Running this script should register everything it
 wants to register. Subsequent execution depends on minetest calling the
 registered callbacks.
-
-`minetest.setting_get(name)` and `minetest.setting_getbool(name)` can be used
-to read custom or existing settings at load time, if necessary.
 
 ### `sounds`
 Media files (sounds) that will be transferred to the

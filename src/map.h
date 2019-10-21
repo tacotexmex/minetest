@@ -79,18 +79,7 @@ struct MapEditEvent
 
 	MapEditEvent() = default;
 
-	MapEditEvent * clone()
-	{
-		MapEditEvent *event = new MapEditEvent();
-		event->type = type;
-		event->p = p;
-		event->n = n;
-		event->modified_blocks = modified_blocks;
-		event->is_private_change = is_private_change;
-		return event;
-	}
-
-	VoxelArea getArea()
+	VoxelArea getArea() const
 	{
 		switch(type){
 		case MEET_ADDNODE:
@@ -125,7 +114,7 @@ class MapEventReceiver
 {
 public:
 	// event shall be deleted by caller after the call.
-	virtual void onMapEditEvent(MapEditEvent *event) = 0;
+	virtual void onMapEditEvent(const MapEditEvent &event) = 0;
 };
 
 class Map /*: public NodeContainer*/
@@ -152,13 +141,11 @@ public:
 	void addEventReceiver(MapEventReceiver *event_receiver);
 	void removeEventReceiver(MapEventReceiver *event_receiver);
 	// event shall be deleted by caller after the call.
-	void dispatchEvent(MapEditEvent *event);
+	void dispatchEvent(const MapEditEvent &event);
 
 	// On failure returns NULL
-	MapSector * getSectorNoGenerateNoExNoLock(v2s16 p2d);
+	MapSector * getSectorNoGenerateNoLock(v2s16 p2d);
 	// Same as the above (there exists no lock anymore)
-	MapSector * getSectorNoGenerateNoEx(v2s16 p2d);
-	// On failure throws InvalidPositionException
 	MapSector * getSectorNoGenerate(v2s16 p2d);
 	// Gets an existing sector or creates an empty one
 	//MapSector * getSectorCreate(v2s16 p2d);
@@ -191,7 +178,7 @@ public:
 	// Returns a CONTENT_IGNORE node if not found
 	// If is_valid_position is not NULL then this will be set to true if the
 	// position is valid, otherwise false
-	MapNode getNodeNoEx(v3s16 p, bool *is_valid_position = NULL);
+	MapNode getNode(v3s16 p, bool *is_valid_position = NULL);
 
 	/*
 		These handle lighting but not faces.
@@ -312,8 +299,11 @@ protected:
 	// This stores the properties of the nodes on the map.
 	const NodeDefManager *m_nodedef;
 
-	bool isOccluded(v3s16 p0, v3s16 p1, float step, float stepfac,
-			float start_off, float end_off, u32 needed_count);
+	bool determineAdditionalOcclusionCheck(const v3s16 &pos_camera,
+		const core::aabbox3d<s16> &block_bounds, v3s16 &check);
+	bool isOccluded(const v3s16 &pos_camera, const v3s16 &pos_target,
+		float step, float stepfac, float start_offset, float end_offset,
+		u32 needed_count);
 
 private:
 	f32 m_transforming_liquid_loop_count_multiplier = 1.0f;
@@ -389,7 +379,7 @@ public:
 		Misc. helper functions for fiddling with directory and file
 		names when saving
 	*/
-	void createDirs(std::string path);
+	void createDirs(const std::string &path);
 	// returns something like "map/sectors/xxxxxxxx"
 	std::string getSectorDir(v2s16 pos, int layout = 2);
 	// dirname: final directory name

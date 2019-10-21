@@ -27,8 +27,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <SMaterial.h>
 #include <memory>
 #include "util/numeric.h"
+#include "config.h"
 
-#if __ANDROID__
+#if ENABLE_GLES
 #include <IVideoDriver.h>
 #endif
 
@@ -63,7 +64,7 @@ std::string getImagePath(std::string path);
 
 	Utilizes a thread-safe cache.
 */
-std::string getTexturePath(const std::string &filename);
+std::string getTexturePath(const std::string &filename, bool *is_base_pack = nullptr);
 
 void clearTextureNameCache();
 
@@ -133,7 +134,8 @@ public:
 
 IWritableTextureSource *createTextureSource();
 
-#ifdef __ANDROID__
+#if ENABLE_GLES
+bool hasNPotSupport();
 video::IImage * Align2Npot2(video::IImage * image, irr::video::IVideoDriver* driver);
 #endif
 
@@ -144,7 +146,10 @@ enum MaterialType{
 	TILE_MATERIAL_LIQUID_OPAQUE,
 	TILE_MATERIAL_WAVING_LEAVES,
 	TILE_MATERIAL_WAVING_PLANTS,
-	TILE_MATERIAL_OPAQUE
+	TILE_MATERIAL_OPAQUE,
+	TILE_MATERIAL_WAVING_LIQUID_BASIC,
+	TILE_MATERIAL_WAVING_LIQUID_TRANSPARENT,
+	TILE_MATERIAL_WAVING_LIQUID_OPAQUE,
 };
 
 // Material flags
@@ -208,16 +213,19 @@ struct TileLayer
 		switch (material_type) {
 		case TILE_MATERIAL_OPAQUE:
 		case TILE_MATERIAL_LIQUID_OPAQUE:
+		case TILE_MATERIAL_WAVING_LIQUID_OPAQUE:
 			material.MaterialType = video::EMT_SOLID;
 			break;
 		case TILE_MATERIAL_BASIC:
 		case TILE_MATERIAL_WAVING_LEAVES:
 		case TILE_MATERIAL_WAVING_PLANTS:
+		case TILE_MATERIAL_WAVING_LIQUID_BASIC:
 			material.MaterialTypeParam = 0.5;
 			material.MaterialType = video::EMT_TRANSPARENT_ALPHA_CHANNEL_REF;
 			break;
 		case TILE_MATERIAL_ALPHA:
 		case TILE_MATERIAL_LIQUID_TRANSPARENT:
+		case TILE_MATERIAL_WAVING_LIQUID_TRANSPARENT:
 			material.MaterialType = video::EMT_TRANSPARENT_ALPHA_CHANNEL;
 			break;
 		default:

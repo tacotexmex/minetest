@@ -372,7 +372,7 @@ void Hud::drawLuaElements(const v3s16 &camera_offset)
 }
 
 
-void Hud::drawStatbar(v2s32 pos, u16 corner, u16 drawdir, std::string texture,
+void Hud::drawStatbar(v2s32 pos, u16 corner, u16 drawdir, const std::string &texture,
 		s32 count, v2s32 offset, v2s32 size)
 {
 	const video::SColor color(255, 255, 255, 255);
@@ -649,10 +649,31 @@ void drawItemStack(video::IVideoDriver *driver,
 		core::rect<s32> oldViewPort = driver->getViewPort();
 		core::matrix4 oldProjMat = driver->getTransform(video::ETS_PROJECTION);
 		core::matrix4 oldViewMat = driver->getTransform(video::ETS_VIEW);
+		core::rect<s32> viewrect = rect;
+		if (clip)
+			viewrect.clipAgainst(*clip);
+
 		core::matrix4 ProjMatrix;
-		ProjMatrix.buildProjectionMatrixOrthoLH(2, 2, -1, 100);
+		ProjMatrix.buildProjectionMatrixOrthoLH(2.0f, 2.0f, -1.0f, 100.0f);
+
+		core::matrix4 ViewMatrix;
+		ViewMatrix.buildProjectionMatrixOrthoLH(
+			2.0f * viewrect.getWidth() / rect.getWidth(),
+			2.0f * viewrect.getHeight() / rect.getHeight(),
+			-1.0f,
+			100.0f);
+		ViewMatrix.setTranslation(core::vector3df(
+			1.0f * (rect.LowerRightCorner.X + rect.UpperLeftCorner.X -
+					viewrect.LowerRightCorner.X - viewrect.UpperLeftCorner.X) /
+					viewrect.getWidth(),
+			1.0f * (viewrect.LowerRightCorner.Y + viewrect.UpperLeftCorner.Y -
+					rect.LowerRightCorner.Y - rect.UpperLeftCorner.Y) /
+					viewrect.getHeight(),
+			0.0f));
+
 		driver->setTransform(video::ETS_PROJECTION, ProjMatrix);
-		driver->setTransform(video::ETS_VIEW, ProjMatrix);
+		driver->setTransform(video::ETS_VIEW, ViewMatrix);
+
 		core::matrix4 matrix;
 		matrix.makeIdentity();
 
@@ -662,7 +683,7 @@ void drawItemStack(video::IVideoDriver *driver,
 		}
 
 		driver->setTransform(video::ETS_WORLD, matrix);
-		driver->setViewPort(rect);
+		driver->setViewPort(viewrect);
 
 		video::SColor basecolor =
 			client->idef()->getItemstackColor(item, client);
@@ -693,6 +714,16 @@ void drawItemStack(video::IVideoDriver *driver,
 		driver->setTransform(video::ETS_VIEW, oldViewMat);
 		driver->setTransform(video::ETS_PROJECTION, oldProjMat);
 		driver->setViewPort(oldViewPort);
+
+		// draw the inventory_overlay
+		if (def.type == ITEM_NODE && def.inventory_image.empty() &&
+				!def.inventory_overlay.empty()) {
+			ITextureSource *tsrc = client->getTextureSource();
+			video::ITexture *overlay_texture = tsrc->getTexture(def.inventory_overlay);
+			core::dimension2d<u32> dimens = overlay_texture->getOriginalSize();
+			core::rect<s32> srcrect(0, 0, dimens.Width, dimens.Height);
+			draw2DImageFilterScaled(driver, overlay_texture, rect, srcrect, clip, 0, true);
+		}
 	}
 
 	if(def.type == ITEM_TOOL && item.wear != 0)

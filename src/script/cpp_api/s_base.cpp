@@ -232,6 +232,13 @@ void ScriptApiBase::loadModFromMemory(const std::string &mod_name)
 void ScriptApiBase::runCallbacksRaw(int nargs,
 		RunCallbacksMode mode, const char *fxn)
 {
+#ifndef SERVER
+	// Hard fail for bad guarded callbacks
+	// Only run callbacks when the scripting enviroment is loaded
+	FATAL_ERROR_IF(m_type == ScriptingType::Client &&
+			!getClient()->modsLoaded(), fxn);
+#endif
+
 #ifdef SCRIPTAPI_LOCK_DEBUG
 	assert(m_lock_recursion_count > 0);
 #endif
@@ -403,6 +410,10 @@ void ScriptApiBase::pushPlayerHPChangeReason(lua_State *L, const PlayerHPChangeR
 	if (reason.object) {
 		objectrefGetOrCreate(L, reason.object);
 		lua_setfield(L, -2, "object");
+	}
+	if (!reason.node.empty()) {
+		lua_pushstring(L, reason.node.c_str());
+		lua_setfield(L, -2, "node");
 	}
 }
 
